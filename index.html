@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Вчимо час: Інтерактивний Годинник та Завдання</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            touch-action: manipulation;
+            overscroll-behavior-y: contain;
+            background-color: #f0f9ff; /* sky-50 */
+        }
+
+        /* Prevent scrolling while dragging the clock */
+        .clock-svg {
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Hand cursor styles */
+        .interactive-hand {
+            cursor: grab;
+        }
+        .dragging .interactive-hand {
+            cursor: grabbing;
+        }
+
+        /* Button interactions */
+        .btn-press {
+            transition: all 0.1s ease;
+        }
+        .btn-press:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+        
+        /* Quiz option animations */
+        .quiz-option {
+            transition: all 0.2s ease-in-out;
+        }
+        .quiz-option:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .quiz-option.correct {
+            background-color: #22c55e; /* green-500 */
+            color: white;
+            border-color: #16a34a; /* green-600 */
+            box-shadow: 0 0 0 4px #bbf7d0; /* green-200 outline */
+        }
+        .quiz-option.incorrect {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            border-color: #dc2626; /* red-600 */
+        }
+        
+        /* Disabled state styling to ensure visual consistency */
+        .quiz-option:disabled {
+            cursor: not-allowed;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 pb-10">
+
+    <header class="w-full bg-white shadow-sm border-b border-sky-100 py-4 mb-6">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between">
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-sky-700 flex items-center gap-2">
+                <span>⏰</span> Вчимо час разом!
+            </h1>
+            <div class="mt-2 sm:mt-0 text-sky-600 font-bold bg-sky-100 px-4 py-2 rounded-full">
+                Рахунок: <span id="score-display">0</span> / 10
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        
+        <!-- ========================================== -->
+        <!-- LEFT COLUMN: QUIZ AREA                     -->
+        <!-- ========================================== -->
+        <section class="w-full bg-white p-6 sm:p-8 rounded-3xl shadow-lg border border-slate-100 flex flex-col h-full min-h-[450px]">
+            
+            <!-- Quiz Playing State -->
+            <div id="quiz-container" class="flex-1 flex flex-col">
+                <div class="mb-4 text-sm font-bold text-slate-400 uppercase tracking-wider">
+                    Питання <span id="current-question-num">1</span> з 10
+                </div>
+                
+                <h2 id="question-text" class="text-xl sm:text-2xl font-bold text-slate-800 mb-8 leading-snug">
+                    <!-- Question injected via JS -->
+                </h2>
+
+                <div id="options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 flex-1 content-start">
+                    <!-- Options injected via JS -->
+                </div>
+
+                <div class="mt-auto pt-4 flex justify-end min-h-[60px]">
+                    <button id="btn-next" class="btn-press hidden bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-8 rounded-2xl shadow-md text-lg">
+                        Наступне питання ➔
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quiz Results State (Hidden by default) -->
+            <div id="results-container" class="hidden flex-1 flex flex-col items-center justify-center text-center">
+                <div class="text-6xl mb-4">🏆</div>
+                <h2 class="text-3xl font-extrabold text-slate-800 mb-2">Молодець!</h2>
+                <p class="text-lg text-slate-600 mb-8">
+                    Ти відповів правильно на <span id="final-score" class="font-black text-sky-600"></span> з 10 питань!
+                </p>
+                <button id="btn-restart" class="btn-press bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-4 px-10 rounded-2xl shadow-lg text-xl">
+                    Зіграти ще раз 🔄
+                </button>
+            </div>
+            
+        </section>
+
+        <!-- ========================================== -->
+        <!-- RIGHT COLUMN: INTERACTIVE CLOCK TOOL       -->
+        <!-- ========================================== -->
+        <section class="w-full flex flex-col items-center lg:sticky lg:top-6">
+            
+            <div class="w-full bg-white p-6 sm:p-8 rounded-3xl shadow-lg border border-slate-100 flex flex-col items-center justify-center mb-6">
+                
+                <h3 class="text-lg font-extrabold text-slate-600 mb-6 text-center">
+                    Твій годинник-помічник
+                    <span class="block text-sm font-normal text-slate-400 mt-1">Крути хвилинну стрілку, щоб рахувати час</span>
+                </h3>
+
+                <!-- SVG Clock Face -->
+                <svg id="clock-svg" class="clock-svg w-full h-auto max-w-[320px] aspect-square drop-shadow-sm mb-6" viewBox="0 0 400 400">
+                    <defs>
+                        <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                            <feDropShadow dx="2" dy="4" stdDeviation="3" flood-opacity="0.2"/>
+                        </filter>
+                    </defs>
+
+                    <!-- Clock Outer & Inner Rings -->
+                    <circle cx="200" cy="200" r="190" fill="#bae6fd" />
+                    <circle cx="200" cy="200" r="175" fill="#ffffff" stroke="#e0f2fe" stroke-width="4"/>
+
+                    <!-- Generated Ticks and Numbers -->
+                    <g id="svg-ticks"></g>
+                    <g id="svg-hour-numbers"></g>
+
+                    <!-- HOUR HAND (Centered exactly at 200, 200) -->
+                    <g id="hour-hand-group" filter="url(#shadow)">
+                        <rect x="190" y="90" width="20" height="130" rx="10" fill="#3b82f6" />
+                    </g>
+
+                    <!-- MINUTE HAND (Centered exactly at 200, 200) -->
+                    <g id="minute-hand-group" class="interactive-hand" filter="url(#shadow)">
+                        <!-- Invisible wider hit area for easier grabbing -->
+                        <rect x="175" y="20" width="50" height="200" fill="transparent" />
+                        <!-- Minute Hand Body (No circle on the end) -->
+                        <rect x="194" y="30" width="12" height="190" rx="6" fill="#ef4444" />
+                    </g>
+
+                    <!-- Center Pivot Pin -->
+                    <circle cx="200" cy="200" r="12" fill="#1e293b" />
+                    <circle cx="200" cy="200" r="4" fill="#cbd5e1" />
+                </svg>
+
+                <!-- AM/PM Toggle Button -->
+                <button id="btn-toggle-ampm" class="btn-press bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-2xl shadow-md w-full max-w-sm mb-6 text-sm sm:text-base flex items-center justify-center gap-2">
+                    <span>🔄</span> Змінити День / Ніч (AM/PM)
+                </button>
+
+                <!-- Digital Clocks Block -->
+                <div class="w-full bg-slate-50 rounded-2xl shadow-inner border border-slate-200 flex overflow-hidden divide-x divide-slate-200 max-w-sm">
+                    
+                    <!-- 12-Hour Format Side -->
+                    <div class="flex-1 flex flex-col items-center justify-center py-4 px-2">
+                        <span class="text-[10px] sm:text-xs text-slate-400 uppercase font-bold tracking-wider mb-1 text-center">
+                            12-годинний формат
+                        </span>
+                        <span id="digital-12" class="text-xl sm:text-2xl font-mono font-bold text-slate-800 tracking-tight">
+                            01:15 PM
+                        </span>
+                    </div>
+
+                    <!-- 24-Hour Format Side -->
+                    <div class="flex-1 flex flex-col items-center justify-center py-4 px-2">
+                        <span class="text-[10px] sm:text-xs text-slate-400 uppercase font-bold tracking-wider mb-1 text-center">
+                            24-годинний формат
+                        </span>
+                        <span id="digital-24" class="text-xl sm:text-2xl font-mono font-bold text-slate-800 tracking-tight">
+                            13:15
+                        </span>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // ==========================================
+        // QUIZ DATA
+        // ==========================================
+        const quizData = [
+            { 
+                q: "Хлопець прийшов на автобусну зупинку о 14:15. Автобус приїхав через 20 хвилин. О котрій годині приїхав автобус?", 
+                options: ["14:35", "14:45", "14:25", "14:55"], 
+                answer: "14:35" 
+            },
+            { 
+                q: "Дівчинка спустилася в Київське метро о 10:30. Її поїздка тривала 15 хвилин. О котрій годині вона вийшла на своїй станції?", 
+                options: ["10:40", "10:45", "10:50", "11:00"], 
+                answer: "10:45" 
+            },
+            { 
+                q: "Двоповерховий автобус у Лондоні вирушив о 3:10 PM. Дорога зайняла 40 хвилин. Коли автобус прибув на місце?", 
+                options: ["3:40 PM", "3:50 PM", "4:00 PM", "4:10 PM"], 
+                answer: "3:50 PM" 
+            },
+            { 
+                q: "Потяг \"Укрзалізниці\" вирушає о 18:00. Пасажирам треба бути на вокзалі за 30 хвилин до відправлення. О котрій годині треба приїхати на вокзал?", 
+                options: ["17:30", "17:40", "18:30", "17:00"], 
+                answer: "17:30" 
+            },
+            { 
+                q: "Шкільний урок починається о 09:00 і триває 45 хвилин. О котрій годині закінчується урок?", 
+                options: ["09:30", "09:40", "09:45", "10:00"], 
+                answer: "09:45" 
+            },
+            { 
+                q: "Сім'я зайшла в лондонське метро о 11:20 ранку. Вони їхали 25 хвилин. Коли вони вийшли?", 
+                options: ["11:35", "11:40", "11:45", "11:55"], 
+                answer: "11:45" 
+            },
+            { 
+                q: "Щоб приготувати корисний обід, потрібно 50 хвилин. Мама почала готувати о 12:10. Коли обід буде готовий?", 
+                options: ["12:50", "13:00", "13:10", "12:40"], 
+                answer: "13:00" 
+            },
+            { 
+                q: "Діти домовилися зустрітися в парку о 15:45. Один з них запізнився на 15 хвилин. О котрій годині він прийшов?", 
+                options: ["15:55", "16:00", "16:15", "15:30"], 
+                answer: "16:00" 
+            },
+            { 
+                q: "Поїздка на київському фунікулері займає 5 хвилин. Якщо зайти туди о 17:55, коли ти будеш нагорі?", 
+                options: ["18:00", "17:50", "18:05", "18:10"], 
+                answer: "18:00" 
+            },
+            { 
+                q: "Екскурсія містом почалася о 2:00 PM і тривала 1 годину 30 хвилин. О котрій годині закінчилася екскурсія?", 
+                options: ["3:00 PM", "3:20 PM", "3:30 PM", "4:00 PM"], 
+                answer: "3:30 PM" 
+            }
+        ];
+
+        // ==========================================
+        // STATE VARIABLES
+        // ==========================================
+        
+        // Quiz State
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let isAnswered = false;
+
+        // Clock State (Total elapsed minutes in a 24-hour period, 0 to 1439)
+        // Default time: 13:15 -> 795 minutes
+        let totalMinutes = (13 * 60) + 15; 
+        let isDragging = false;
+        let lastAngle = 0;
+
+        // ==========================================
+        // DOM ELEMENTS
+        // ==========================================
+        
+        // Quiz Elements
+        const quizContainer = document.getElementById('quiz-container');
+        const resultsContainer = document.getElementById('results-container');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const btnNext = document.getElementById('btn-next');
+        const btnRestart = document.getElementById('btn-restart');
+        const currentQuestionNum = document.getElementById('current-question-num');
+        const scoreDisplay = document.getElementById('score-display');
+        const finalScore = document.getElementById('final-score');
+
+        // Clock Elements
+        const clockSvg = document.getElementById('clock-svg');
+        const hourHandGroup = document.getElementById('hour-hand-group');
+        const minuteHandGroup = document.getElementById('minute-hand-group');
+        const digital12El = document.getElementById('digital-12');
+        const digital24El = document.getElementById('digital-24');
+        const btnToggleAMPM = document.getElementById('btn-toggle-ampm');
+
+        // ==========================================
+        // QUIZ LOGIC
+        // ==========================================
+        
+        function renderQuestion() {
+            isAnswered = false;
+            btnNext.classList.add('hidden');
+            
+            const currentQuestion = quizData[currentQuestionIndex];
+            currentQuestionNum.textContent = currentQuestionIndex + 1;
+            questionText.textContent = currentQuestion.q;
+            
+            // Clear previous options
+            optionsContainer.innerHTML = '';
+
+            // Create buttons for options
+            currentQuestion.options.forEach(optionText => {
+                const btn = document.createElement('button');
+                btn.textContent = optionText;
+                btn.className = 'quiz-option bg-slate-50 border-2 border-slate-200 text-slate-700 font-bold text-lg py-4 px-6 rounded-2xl w-full text-center';
+                
+                btn.addEventListener('click', () => handleOptionClick(btn, optionText, currentQuestion.answer));
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function handleOptionClick(selectedBtn, selectedText, correctText) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const allButtons = optionsContainer.querySelectorAll('.quiz-option');
+            
+            // Evaluate answer
+            const isCorrect = (selectedText === correctText);
+            
+            if (isCorrect) {
+                score++;
+                scoreDisplay.textContent = score;
+                selectedBtn.classList.add('correct');
+            } else {
+                selectedBtn.classList.add('incorrect');
+            }
+
+            // Reveal correct answer and disable all buttons
+            allButtons.forEach(btn => {
+                btn.disabled = true; // prevent further clicks and hover states
+                if (btn.textContent === correctText && !isCorrect) {
+                    // Highlight the correct answer if the user got it wrong
+                    btn.classList.add('correct');
+                }
+            });
+
+            // Show next button
+            btnNext.classList.remove('hidden');
+        }
+
+        function showResults() {
+            quizContainer.classList.add('hidden');
+            resultsContainer.classList.remove('hidden');
+            finalScore.textContent = score;
+        }
+
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            scoreDisplay.textContent = score;
+            quizContainer.classList.remove('hidden');
+            resultsContainer.classList.add('hidden');
+            
+            // Reset clock to 13:15
+            totalMinutes = (13 * 60) + 15;
+            updateClockUI();
+            
+            renderQuestion();
+        }
+
+        btnNext.addEventListener('click', () => {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < quizData.length) {
+                renderQuestion();
+            } else {
+                showResults();
+            }
+        });
+
+        btnRestart.addEventListener('click', restartQuiz);
+
+
+        // ==========================================
+        // CLOCK LOGIC
+        // ==========================================
+        
+        function buildClockFace() {
+            const svgTicks = document.getElementById('svg-ticks');
+            const svgHourNumbers = document.getElementById('svg-hour-numbers');
+            const centerX = 200;
+            const centerY = 200;
+
+            // Draw 60 ticks
+            for (let i = 0; i < 60; i++) {
+                const angle = (i * 6) * (Math.PI / 180);
+                const isHour = i % 5 === 0;
+                
+                const rInner = isHour ? 155 : 165;
+                const rOuter = 172;
+
+                const x1 = centerX + rInner * Math.sin(angle);
+                const y1 = centerY - rInner * Math.cos(angle);
+                const x2 = centerX + rOuter * Math.sin(angle);
+                const y2 = centerY - rOuter * Math.cos(angle);
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', isHour ? '#94a3b8' : '#cbd5e1');
+                line.setAttribute('stroke-width', isHour ? '4' : '2');
+                line.setAttribute('stroke-linecap', 'round');
+                
+                svgTicks.appendChild(line);
+            }
+
+            // Draw 1-12 Hour Numbers
+            for (let h = 1; h <= 12; h++) {
+                const angle = (h * 30) * (Math.PI / 180);
+                const radius = 130;
+                const x = centerX + radius * Math.sin(angle);
+                const y = centerY - radius * Math.cos(angle);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', x);
+                text.setAttribute('y', y + 10); // Offset for vertical centering
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-size', '28');
+                text.setAttribute('font-weight', '800');
+                text.setAttribute('fill', '#334155');
+                text.textContent = h;
+
+                svgHourNumbers.appendChild(text);
+            }
+        }
+
+        function updateClockUI() {
+            // Keep totalMinutes strictly within 0 to 1439 mins (24 hours)
+            if (totalMinutes < 0) totalMinutes = (totalMinutes % 1440) + 1440;
+            totalMinutes = totalMinutes % 1440;
+
+            // Calculate Angles
+            // Minute hand rotates 360deg every 60 mins -> 6deg/min
+            const minuteAngle = (totalMinutes % 60) * 6;
+            
+            // Hour hand rotates 360deg every 720 mins (12 hours) -> 0.5deg/min
+            const hourAngle = (totalMinutes % 720) * 0.5;
+
+            // Apply SVG rotation centered at pivot (200, 200)
+            minuteHandGroup.setAttribute('transform', `rotate(${minuteAngle}, 200, 200)`);
+            hourHandGroup.setAttribute('transform', `rotate(${hourAngle}, 200, 200)`);
+
+            // Extract Hours and Minutes
+            const hours24 = Math.floor(totalMinutes / 60) % 24;
+            const minutes = Math.floor(totalMinutes % 60);
+            
+            let hours12 = hours24 % 12;
+            if (hours12 === 0) hours12 = 12;
+            
+            const ampm = hours24 >= 12 ? 'PM' : 'AM';
+
+            // Format strings
+            const paddedHours24 = hours24.toString().padStart(2, '0');
+            const paddedHours12 = hours12.toString().padStart(2, '0');
+            const paddedMins = minutes.toString().padStart(2, '0');
+
+            // Update Digital Displays
+            digital24El.textContent = `${paddedHours24}:${paddedMins}`;
+            digital12El.textContent = `${paddedHours12}:${paddedMins} ${ampm}`;
+        }
+
+        // Calculate angle of pointer relative to the center of the SVG
+        function getPointerAngleInClock(e) {
+            const rect = clockSvg.getBoundingClientRect();
+            
+            const scaleX = 400 / rect.width;
+            const scaleY = 400 / rect.height;
+
+            const svgX = (e.clientX - rect.left) * scaleX;
+            const svgY = (e.clientY - rect.top) * scaleY;
+
+            const dx = svgX - 200;
+            const dy = svgY - 200;
+
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            angle += 90; // offset so 12 o'clock is 0 degrees
+            
+            if (angle < 0) angle += 360;
+            return angle;
+        }
+
+        // Clock Drag Events
+        clockSvg.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            clockSvg.setPointerCapture(e.pointerId);
+            clockSvg.classList.add('dragging');
+            lastAngle = getPointerAngleInClock(e);
+        });
+
+        clockSvg.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+
+            const currentAngle = getPointerAngleInClock(e);
+            let deltaAngle = currentAngle - lastAngle;
+
+            // Handle wrap-around at 12 o'clock threshold
+            if (deltaAngle > 180) deltaAngle -= 360;
+            if (deltaAngle < -180) deltaAngle += 360;
+
+            // Convert degree shift to minute shift
+            let deltaMinutes = deltaAngle / 6;
+
+            totalMinutes += deltaMinutes;
+            lastAngle = currentAngle;
+
+            updateClockUI();
+        });
+
+        function handlePointerUp(e) {
+            if (isDragging) {
+                isDragging = false;
+                try {
+                    clockSvg.releasePointerCapture(e.pointerId);
+                } catch (err) {}
+                clockSvg.classList.remove('dragging');
+                
+                // Snap to exact minute upon release to prevent floating point drift
+                totalMinutes = Math.round(totalMinutes);
+                updateClockUI();
+            }
+        }
+
+        clockSvg.addEventListener('pointerup', handlePointerUp);
+        clockSvg.addEventListener('pointercancel', handlePointerUp);
+
+        // AM/PM Toggle
+        btnToggleAMPM.addEventListener('click', () => {
+            totalMinutes += (12 * 60);
+            updateClockUI();
+        });
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        function initApp() {
+            buildClockFace();
+            updateClockUI();
+            renderQuestion();
+        }
+
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
