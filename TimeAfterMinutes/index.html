@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Годинник: зараз і через кілька хвилин</title>
+<style>
+  :root {
+    --bg: #f3efe6;
+    --card: #fffdf8;
+    --ink: #1d2433;
+    --muted: #6b7280;
+    --line: #ddd5c4;
+    --accent: #d9480f;
+    --ok: #2b8a3e;
+    --ok-bg: #e6f4e8;
+    --bad: #c92a2a;
+    --bad-bg: #fbe9e9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px 14px 40px;
+  }
+  .card {
+    width: 100%;
+    max-width: 880px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 22px 26px 28px;
+    box-shadow: 0 10px 30px rgba(29, 36, 51, .08);
+  }
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 15px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .top b { color: var(--ink); }
+  .dots { display: flex; gap: 6px; margin: 12px 0 22px; }
+  .dot { flex: 1; height: 8px; border-radius: 4px; background: #e9e2d2; transition: background .25s; }
+  .dot.now { background: var(--ink); }
+  .dot.ok { background: var(--ok); }
+  .dot.half { background: #e8a13a; }
+  .dot.bad { background: var(--bad); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+    gap: 30px;
+    align-items: center;
+  }
+  .questions { display: flex; flex-direction: column; gap: 18px; }
+  .q {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 16px 14px;
+    background: #fff;
+  }
+  .q label {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 12px;
+  }
+  .q label .n {
+    display: inline-block;
+    width: 28px; height: 28px; line-height: 28px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--ink); color: #fff;
+    font-size: 15px;
+    margin-right: 6px;
+    vertical-align: 2px;
+  }
+  .q label .x { white-space: nowrap; }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .q input {
+    width: 150px;
+    font: inherit;
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    letter-spacing: .04em;
+    padding: 8px 10px;
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--ink);
+    outline: none;
+  }
+  .q input::placeholder { color: #c5bca9; font-weight: 500; }
+  .q input:focus { border-color: var(--ink); }
+  .q input.ok { border-color: var(--ok); background: var(--ok-bg); }
+  .q input.bad { border-color: var(--bad); background: var(--bad-bg); }
+  .fb { font-size: 16px; font-weight: 700; min-height: 22px; }
+  .fb.ok { color: var(--ok); }
+  .fb.bad { color: var(--bad); }
+
+  .actions { display: flex; align-items: center; gap: 14px; }
+  button.main {
+    font: inherit;
+    font-size: 18px;
+    font-weight: 700;
+    min-height: 56px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--ink);
+    color: #fff;
+    cursor: pointer;
+  }
+  button.main:hover { background: #2c3650; }
+  #mainBtn { flex: none; width: 160px; padding: 0; }
+  button.main:focus-visible, .hint-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .msg { font-size: 16px; font-weight: 600; color: var(--muted); min-height: 22px; }
+
+  .clockside { text-align: center; }
+  svg.clock { width: 100%; max-width: 340px; height: auto; display: block; margin: 0 auto; }
+  .hand { transform-origin: 150px 150px; }
+  .mins { opacity: 0; transition: opacity .25s; }
+  .show-mins .mins { opacity: 1; }
+  .play {
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+    gap: 8px; margin-top: 12px; font-size: 17px; font-weight: 600;
+  }
+  .play input {
+    width: 64px; font: inherit; font-size: 20px; font-weight: 700; text-align: center;
+    padding: 6px 4px; border: 2px solid var(--line); border-radius: 10px;
+    background: #fff; color: var(--ink); outline: none;
+  }
+  .play input:focus { border-color: var(--ink); }
+  .icon-btn {
+    width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 50%;
+    background: var(--accent); color: #fff; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:hover { background: #b83c0b; }
+  .icon-btn.ghost { background: none; color: var(--muted); border: 1px solid var(--line); }
+  .icon-btn.ghost:hover { background: #f1ecdf; color: var(--ink); }
+  .icon-btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .icon-btn svg { width: 22px; height: 22px; display: block; }
+  .hint-btn {
+    margin-bottom: 12px;
+    background: none;
+    border: 1px dashed var(--line);
+    color: var(--muted);
+    font: inherit;
+    font-size: 14px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .hint-btn:hover { color: var(--ink); border-color: var(--muted); }
+
+  .result { text-align: center; max-width: 520px; margin: 0 auto; }
+  .result h1 { font-size: 26px; margin: 6px 0 0; }
+  .result .big { font-size: 64px; font-weight: 800; line-height: 1; margin: 18px 0 6px; }
+  .result .big span { color: var(--muted); font-size: 34px; font-weight: 700; }
+  .result p { font-size: 18px; margin: 8px 0 20px; }
+  .review { list-style: none; padding: 0; margin: 0 0 22px; text-align: left; }
+  .review li {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 9px 12px; border-radius: 10px; font-size: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .review li:nth-child(odd) { background: #f6f2e8; }
+  .r-ok { color: var(--ok); font-weight: 700; }
+  .r-bad { color: var(--bad); font-weight: 700; }
+  .hidden { display: none !important; }
+
+  @media (max-width: 720px) {
+    .layout { grid-template-columns: 1fr; gap: 18px; }
+    .clockside { order: -1; }
+    svg.clock { max-width: 280px; }
+    .q label { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<main class="card">
+  <section id="game">
+    <div class="top">
+      <span>Завдання <b id="qnum">1</b> з 10</span>
+      <span>Правильних відповідей: <b id="score">0</b></span>
+    </div>
+    <div class="dots" id="dots"></div>
+
+    <div class="layout">
+      <form class="questions" id="form" autocomplete="off" novalidate>
+        <div class="q">
+          <label for="a1"><span class="n">1</span>Котру годину показує годинник?</label>
+          <div class="row">
+            <input id="a1" type="text" placeholder="0:00" maxlength="5" aria-describedby="f1">
+            <span class="fb" id="f1" role="status"></span>
+          </div>
+        </div>
+        <div class="q">
+          <label for="a2"><span class="n">2</span>Котру годину покаже годинник <span class="x" id="xText">через 5 хвилин</span>?</label>
+          <div class="row">
+            <input id="a2" type="text" placeholder="0:00" maxlength="5" aria-describedby="f2">
+            <span class="fb" id="f2" role="status"></span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="main" type="submit" id="mainBtn">Перевірити</button>
+          <span class="msg" id="msg" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+
+      <div class="clockside" id="clockWrap">
+        <button type="button" class="hint-btn" id="hintBtn">Показати хвилини на циферблаті</button>
+        <svg class="clock" viewBox="0 0 300 300" role="img" aria-label="Годинник зі стрілками" id="clock"></svg>
+        <div class="play">
+          <label for="playMin">Показати час через</label>
+          <input id="playMin" type="number" inputmode="numeric" min="1" max="60" step="1" aria-label="Кількість хвилин">
+          <span>хвилин</span>
+          <button type="button" class="icon-btn" id="playBtn" title="Показати" aria-label="Показати час через вказану кількість хвилин">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+          </button>
+          <button type="button" class="icon-btn ghost" id="resetBtn" title="Повернути годинник назад" aria-label="Повернути годинник назад">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v5h5"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" class="result hidden">
+    <h1>Гру завершено!</h1>
+    <div class="big"><b id="finalScore">0</b><span> / 20</span></div>
+    <p id="finalText"></p>
+    <ul class="review" id="review"></ul>
+    <button class="main" type="button" id="againBtn" style="width:100%">Грати ще раз</button>
+  </section>
+</main>
+
+<script>
+(function () {
+  var TOTAL = 10;
+  var NS = 'http://www.w3.org/2000/svg';
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---------- годинник ----------
+  var clock = $('clock');
+  function el(name, attrs, text) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function polar(r, deg) {
+    var a = (deg - 90) * Math.PI / 180;
+    return [150 + r * Math.cos(a), 150 + r * Math.sin(a)];
+  }
+  clock.appendChild(el('circle', { cx: 150, cy: 150, r: 144, fill: '#1d2433' }));
+  clock.appendChild(el('circle', { cx: 150, cy: 150, r: 136, fill: '#ffffff' }));
+  for (var i = 0; i < 60; i++) {
+    var big = i % 5 === 0;
+    var p1 = polar(big ? 121 : 127, i * 6), p2 = polar(133, i * 6);
+    clock.appendChild(el('line', {
+      x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1],
+      stroke: big ? '#1d2433' : '#9aa1ad',
+      'stroke-width': big ? 3.5 : 1.5, 'stroke-linecap': 'round'
+    }));
+  }
+  for (var h = 1; h <= 12; h++) {
+    var p = polar(103, h * 30);
+    clock.appendChild(el('text', {
+      x: p[0], y: p[1], 'text-anchor': 'middle', 'dominant-baseline': 'central',
+      'font-size': 25, 'font-weight': 700, fill: '#1d2433', 'font-family': 'inherit'
+    }, h));
+    var q = polar(77, h * 30);
+    clock.appendChild(el('text', {
+      x: q[0], y: q[1], 'text-anchor': 'middle', 'dominant-baseline': 'central',
+      'font-size': 12, 'font-weight': 700, fill: '#d9480f', 'class': 'mins', 'font-family': 'inherit'
+    }, h === 12 ? '00' : h * 5));
+  }
+  var hourHand = el('line', {
+    x1: 150, y1: 162, x2: 150, y2: 88, stroke: '#1d2433',
+    'stroke-width': 8, 'stroke-linecap': 'round', 'class': 'hand'
+  });
+  var minHand = el('line', {
+    x1: 150, y1: 168, x2: 150, y2: 34, stroke: '#d9480f',
+    'stroke-width': 4.5, 'stroke-linecap': 'round', 'class': 'hand'
+  });
+  clock.appendChild(hourHand);
+  clock.appendChild(minHand);
+  // лічильник хвилин, що їде разом із хвилинною стрілкою
+  var badge = el('g', { visibility: 'hidden' });
+  var badgeText = el('text', {
+    x: 0, y: 0, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+    'font-size': 17, 'font-weight': 800, fill: '#ffffff', 'font-family': 'inherit'
+  }, '');
+  badge.appendChild(el('circle', { cx: 0, cy: 0, r: 15, fill: '#d9480f', stroke: '#ffffff', 'stroke-width': 2.5 }));
+  badge.appendChild(badgeText);
+  clock.appendChild(badge);
+  function showBadge(n, totalMin) {
+    var p = polar(72, totalMin * 6);
+    badge.setAttribute('transform', 'translate(' + p[0] + ' ' + p[1] + ')');
+    badgeText.textContent = n;
+    badge.setAttribute('visibility', 'visible');
+  }
+  function hideBadge() { badge.setAttribute('visibility', 'hidden'); }
+  clock.appendChild(el('circle', { cx: 150, cy: 150, r: 8, fill: '#1d2433' }));
+  clock.appendChild(el('circle', { cx: 150, cy: 150, r: 3, fill: '#ffffff' }));
+
+  // кут рахуємо від загальної кількості хвилин, щоб стрілки завжди йшли вперед
+  function setClock(totalMin, seconds) {
+    var tr = seconds ? 'transform ' + seconds + 's ease-in-out' : 'none';
+    hourHand.style.transition = tr;
+    minHand.style.transition = tr;
+    hourHand.style.transform = 'rotate(' + (totalMin * 0.5) + 'deg)';
+    minHand.style.transform = 'rotate(' + (totalMin * 6) + 'deg)';
+  }
+
+  // ---------- гра ----------
+  var rounds, idx, score, attempts, done, results;
+  var inputs = [$('a1'), $('a2')], fbs = [$('f1'), $('f2')];
+  var msg = $('msg'), mainBtn = $('mainBtn'), playMin = $('playMin');
+  var locked, correct, given;
+
+  function fmt(t) { return t.h + ':' + (t.m < 10 ? '0' : '') + t.m; }
+  function minutesWord(x) {
+    return x === 1 ? 'хвилину' : x <= 4 ? 'хвилини' : 'хвилин';
+  }
+  function addMinutes(t, x) {
+    var total = (t.h % 12) * 60 + t.m + x;
+    var hh = Math.floor(total / 60) % 12;
+    return { h: hh === 0 ? 12 : hh, m: total % 60 };
+  }
+
+  function baseMinutes() {
+    var t = rounds[idx].now;
+    return (t.h % 12) * 60 + t.m;
+  }
+
+  function makeRounds() {
+    var list = [], seen = {};
+    while (list.length < TOTAL) {
+      var hh = 1 + Math.floor(Math.random() * 12);
+      var mm = 1 + Math.floor(Math.random() * 59);
+      if (mm % 5 === 0) continue;                     // хвилини не кратні 5
+      var key = hh + ':' + mm;
+      if (seen[key]) continue;
+      seen[key] = true;
+      var x = 1 + Math.floor(Math.random() * 10);     // від 1 до 10 хвилин
+      var now = { h: hh, m: mm };
+      list.push({ now: now, x: x, later: addMinutes(now, x) });
+    }
+    return list;
+  }
+
+  function drawDots() {
+    var box = $('dots');
+    box.innerHTML = '';
+    for (var i = 0; i < TOTAL; i++) {
+      var d = document.createElement('div');
+      var cls = '';
+      if (i < results.length) cls = results[i].pts === 2 ? ' ok' : results[i].pts === 1 ? ' half' : ' bad';
+      else if (i === idx) cls = ' now';
+      d.className = 'dot' + cls;
+      box.appendChild(d);
+    }
+  }
+
+  function setFb(i, text, kind) {
+    fbs[i].textContent = text;
+    fbs[i].className = 'fb' + (kind ? ' ' + kind : '');
+  }
+
+  function showRound() {
+    var r = rounds[idx];
+    attempts = 0;
+    done = false;
+    locked = [false, false];
+    correct = [false, false];
+    given = ['', ''];
+    stopPlay();
+    setClock(baseMinutes(), 0.7);
+    playMin.value = '';
+    $('qnum').textContent = idx + 1;
+    $('score').textContent = score;
+    $('xText').textContent = 'через ' + r.x + ' ' + minutesWord(r.x);
+    for (var i = 0; i < 2; i++) {
+      inputs[i].value = '';
+      inputs[i].className = '';
+      inputs[i].readOnly = false;
+      setFb(i, '', '');
+    }
+    mainBtn.textContent = 'Перевірити';
+    msg.textContent = '';
+    drawDots();
+    inputs[0].focus();
+  }
+
+  function parse(text) {
+    var t = /^\s*(\d{1,2})\s*:\s*(\d{2})\s*$/.exec(text);
+    if (!t) return null;
+    var hh = parseInt(t[1], 10), mm = parseInt(t[2], 10);
+    if (hh > 23 || mm > 59) return null;
+    return { h: hh, m: mm };
+  }
+  function same(a, b) { return a.m === b.m && a.h % 12 === b.h % 12; }
+
+  function check() {
+    var r = rounds[idx];
+    var answers = [r.now, r.later];
+    var parsed = [null, null];
+    var i;
+
+    // спочатку перевіряємо, що обидві відповіді записані як години:хвилини
+    for (i = 0; i < 2; i++) {
+      if (locked[i]) continue;
+      parsed[i] = parse(inputs[i].value);
+      if (!parsed[i]) {
+        msg.textContent = /^\s*\d{3,4}\s*$/.test(inputs[i].value)
+          ? 'Постав двокрапку між годинами і хвилинами, наприклад 7:43'
+          : 'Запиши відповідь на обидва питання, наприклад 7:43';
+        inputs[i].focus();
+        return;
+      }
+    }
+    msg.textContent = '';
+    attempts++;
+
+    var firstWrong = -1;
+    for (i = 0; i < 2; i++) {
+      if (locked[i]) continue;
+      given[i] = fmt(parsed[i]);
+      if (same(parsed[i], answers[i])) {
+        correct[i] = true;
+        locked[i] = true;
+        inputs[i].readOnly = true;
+        inputs[i].className = 'ok';
+        setFb(i, '✓ Правильно', 'ok');
+      } else {
+        inputs[i].className = 'bad';
+        if (attempts < 2) {
+          setFb(i, 'Спробуй ще раз', 'bad');
+          if (firstWrong < 0) firstWrong = i;
+        } else {
+          locked[i] = true;
+          inputs[i].readOnly = true;
+          setFb(i, 'Правильно: ' + fmt(answers[i]), 'bad');
+        }
+      }
+    }
+
+    if (locked[0] && locked[1]) {
+      finishRound();
+    } else if (firstWrong >= 0) {
+      inputs[firstWrong].focus();
+      inputs[firstWrong].select();
+    }
+  }
+
+  function finishRound() {
+    var r = rounds[idx];
+    done = true;
+    var pts = (correct[0] ? 1 : 0) + (correct[1] ? 1 : 0);
+    score += pts;
+    results.push({ r: r, pts: pts, ok: correct.slice(), given: given.slice() });
+    $('score').textContent = score;
+    mainBtn.textContent = idx === TOTAL - 1 ? 'Результат' : 'Далі';
+    drawDots();
+    mainBtn.focus();
+  }
+
+  function showResult() {
+    $('game').classList.add('hidden');
+    $('result').classList.remove('hidden');
+    $('finalScore').textContent = score;
+    $('finalText').textContent =
+      score === TOTAL * 2 ? 'Чудово! Усі відповіді правильні.' :
+      score >= 16 ? 'Дуже добре!' :
+      score >= 10 ? 'Непогано. Ще трохи практики!' :
+      'Потренуйся ще — усе вийде.';
+    var ul = $('review');
+    ul.innerHTML = '';
+    results.forEach(function (res, i) {
+      var li = document.createElement('li');
+      var left = document.createElement('span');
+      left.textContent = (i + 1) + '. ' + fmt(res.r.now) + '  →  через ' + res.r.x + ' хв  →  ' + fmt(res.r.later);
+      var right = document.createElement('span');
+      right.className = res.pts === 2 ? 'r-ok' : 'r-bad';
+      right.textContent = (res.ok[0] ? '✓' : '✗') + ' ' + (res.ok[1] ? '✓' : '✗');
+      li.appendChild(left);
+      li.appendChild(right);
+      ul.appendChild(li);
+    });
+    $('againBtn').focus();
+  }
+
+  function start() {
+    rounds = makeRounds();
+    idx = 0;
+    score = 0;
+    results = [];
+    $('result').classList.add('hidden');
+    $('game').classList.remove('hidden');
+    showRound();
+  }
+
+  inputs.forEach(function (inp, i) {
+    inp.addEventListener('input', function () {
+      if (locked[i]) return;
+      inp.className = '';
+      setFb(i, '', '');
+    });
+  });
+
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!done) { check(); return; }
+    if (idx === TOTAL - 1) { showResult(); return; }
+    idx++;
+    showRound();
+  });
+
+  $('hintBtn').addEventListener('click', function () {
+    var on = $('clockWrap').classList.toggle('show-mins');
+    this.textContent = on ? 'Сховати хвилини на циферблаті' : 'Показати хвилини на циферблаті';
+  });
+
+  // хвилинна стрілка перестрибує по одній хвилині, поруч з нею лічильник 1, 2, 3 … x
+  var timer = null;
+  function stopPlay() {
+    if (timer) { clearInterval(timer); timer = null; }
+    hideBadge();
+  }
+  function play() {
+    var n = parseInt(playMin.value, 10);
+    if (!(n >= 1 && n <= 60)) { playMin.focus(); return; }
+    stopPlay();
+    var base = baseMinutes(), step = 0;
+    setClock(base, 0);
+    timer = setInterval(function () {
+      step++;
+      setClock(base + step, 0);
+      showBadge(step, base + step);
+      if (step >= n) { clearInterval(timer); timer = null; }
+    }, 700);
+  }
+  $('playBtn').addEventListener('click', play);
+  playMin.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); play(); }
+  });
+  $('resetBtn').addEventListener('click', function () { stopPlay(); setClock(baseMinutes(), 0.5); });
+
+  $('againBtn').addEventListener('click', start);
+
+  start();
+})();
+</script>
+</body>
+</html>
