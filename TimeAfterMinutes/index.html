@@ -31,7 +31,7 @@
   }
   .card {
     width: 100%;
-    max-width: 880px;
+    max-width: 960px;
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: 22px;
@@ -56,7 +56,7 @@
 
   .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
     gap: 30px;
     align-items: center;
   }
@@ -127,22 +127,23 @@
   .msg { font-size: 16px; font-weight: 600; color: var(--muted); min-height: 22px; }
 
   .clockside { text-align: center; }
-  svg.clock { width: 100%; max-width: 340px; height: auto; display: block; margin: 0 auto; }
+  svg.clock { width: 100%; max-width: 400px; height: auto; display: block; margin: 0 auto; }
   .hand { transform-origin: 150px 150px; }
   .mins { opacity: 0; transition: opacity .25s; }
   .show-mins .mins { opacity: 1; }
   .play {
     display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
-    gap: 8px; margin-top: 12px; font-size: 17px; font-weight: 600;
+    gap: 6px 8px; margin-top: 4px; font-size: 16px; font-weight: 600;
   }
+  .play-row { display: flex; align-items: center; gap: 8px; flex: none; white-space: nowrap; }
   .play input {
-    width: 64px; font: inherit; font-size: 20px; font-weight: 700; text-align: center;
+    width: 52px; font: inherit; font-size: 20px; font-weight: 700; text-align: center;
     padding: 6px 4px; border: 2px solid var(--line); border-radius: 10px;
     background: #fff; color: var(--ink); outline: none;
   }
   .play input:focus { border-color: var(--ink); }
   .icon-btn {
-    width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 50%;
+    width: 40px; height: 40px; flex: none; padding: 0; border: 0; border-radius: 50%;
     background: var(--accent); color: #fff; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
   }
@@ -183,7 +184,7 @@
   @media (max-width: 720px) {
     .layout { grid-template-columns: 1fr; gap: 18px; }
     .clockside { order: -1; }
-    svg.clock { max-width: 280px; }
+    svg.clock { max-width: 330px; }
     .q label { font-size: 18px; }
   }
 </style>
@@ -221,10 +222,11 @@
 
       <div class="clockside" id="clockWrap">
         <button type="button" class="hint-btn" id="hintBtn">Показати хвилини на циферблаті</button>
-        <svg class="clock" viewBox="0 0 300 300" role="img" aria-label="Годинник зі стрілками" id="clock"></svg>
+        <svg class="clock" viewBox="-34 -34 368 368" role="img" aria-label="Годинник зі стрілками" id="clock"></svg>
         <div class="play">
           <label for="playMin">Показати час через</label>
-          <input id="playMin" type="number" inputmode="numeric" min="1" max="60" step="1" aria-label="Кількість хвилин">
+          <div class="play-row">
+          <input id="playMin" type="text" inputmode="numeric" maxlength="2" aria-label="Кількість хвилин">
           <span>хвилин</span>
           <button type="button" class="icon-btn" id="playBtn" title="Показати" aria-label="Показати час через вказану кількість хвилин">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
@@ -232,6 +234,7 @@
           <button type="button" class="icon-btn ghost" id="resetBtn" title="Повернути годинник назад" aria-label="Повернути годинник назад">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v5h5"/></svg>
           </button>
+          </div>
         </div>
       </div>
     </div>
@@ -307,7 +310,7 @@
   badge.appendChild(badgeText);
   clock.appendChild(badge);
   function showBadge(n, totalMin) {
-    var p = polar(72, totalMin * 6);
+    var p = polar(164, totalMin * 6);   // поза циферблатом
     badge.setAttribute('transform', 'translate(' + p[0] + ' ' + p[1] + ')');
     badgeText.textContent = n;
     badge.setAttribute('visibility', 'visible');
@@ -554,6 +557,9 @@
     }, 700);
   }
   $('playBtn').addEventListener('click', play);
+  playMin.addEventListener('input', function () {
+    playMin.value = playMin.value.replace(/\D/g, '').slice(0, 2);
+  });
   playMin.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); play(); }
   });
