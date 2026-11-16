@@ -538,9 +538,10 @@
   });
 
   // хвилинна стрілка перестрибує по одній хвилині, поруч з нею лічильник 1, 2, 3 … x
-  var timer = null;
+  var timer = null, hideTimer = null;
   function stopPlay() {
     if (timer) { clearInterval(timer); timer = null; }
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
     hideBadge();
   }
   function play() {
@@ -553,7 +554,11 @@
       step++;
       setClock(base + step, 0);
       showBadge(step, base + step);
-      if (step >= n) { clearInterval(timer); timer = null; }
+      if (step >= n) {
+        clearInterval(timer);
+        timer = null;
+        hideTimer = setTimeout(hideBadge, 1000);   // ховаємо лічильник через секунду після зупинки
+      }
     }, 700);
   }
   $('playBtn').addEventListener('click', play);
