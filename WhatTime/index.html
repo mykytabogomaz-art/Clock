@@ -336,21 +336,19 @@
     if (ok) {
       input.className = 'ok';
       setMsg('Правильно! Це ' + fmt(q), 'ok');
-      finishQuestion(true, given);
+      // бал зараховуємо, якщо правильно з першої або другої спроби;
+      // виправити можна будь-коли, але пізніше — уже без бала
+      finishQuestion(attempts < 2, given);
       return;
     }
+    // помилку завжди можна виправити: правильну відповідь не показуємо
     attempts++;
     input.className = 'bad';
-    if (attempts < 2) {
-      var tip = a.h % 12 === q.h % 12 ? 'Години правильні — перевір хвилини.'
-              : a.m === q.m ? 'Хвилини правильні — перевір години.'
-              : 'Спробуй ще раз.';
-      setMsg('Не зовсім. ' + tip, 'bad');
-      input.select();
-    } else {
-      setMsg('Правильна відповідь: ' + fmt(q), 'bad');
-      finishQuestion(false, given);
-    }
+    var tip = a.h % 12 === q.h % 12 ? 'Години правильні — перевір хвилини.'
+            : a.m === q.m ? 'Хвилини правильні — перевір години.'
+            : 'Спробуй ще раз.';
+    setMsg('Не зовсім. ' + tip, 'bad');
+    input.select();
   }
 
   function showResult() {
