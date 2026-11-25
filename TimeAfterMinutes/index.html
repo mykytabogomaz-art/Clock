@@ -443,21 +443,18 @@
       if (locked[i]) continue;
       given[i] = fmt(parsed[i]);
       if (same(parsed[i], answers[i])) {
-        correct[i] = true;
+        // бал зараховуємо, якщо правильно з першої або другої спроби;
+        // виправити можна будь-коли, але пізніше — уже без бала
+        correct[i] = attempts <= 2;
         locked[i] = true;
         inputs[i].readOnly = true;
         inputs[i].className = 'ok';
         setFb(i, '✓ Правильно', 'ok');
       } else {
+        // помилку завжди можна виправити: правильну відповідь не показуємо
         inputs[i].className = 'bad';
-        if (attempts < 2) {
-          setFb(i, 'Спробуй ще раз', 'bad');
-          if (firstWrong < 0) firstWrong = i;
-        } else {
-          locked[i] = true;
-          inputs[i].readOnly = true;
-          setFb(i, 'Правильно: ' + fmt(answers[i]), 'bad');
-        }
+        setFb(i, 'Спробуй ще раз', 'bad');
+        if (firstWrong < 0) firstWrong = i;
       }
     }
 
